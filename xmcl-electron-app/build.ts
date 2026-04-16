@@ -5,7 +5,8 @@ import { Configuration, build as electronBuilder } from 'electron-builder'
 import { BuildOptions, build as esbuild } from 'esbuild'
 import { createReadStream, createWriteStream, existsSync } from 'fs'
 import { copy, emptyDir, ensureFile } from 'fs-extra'
-import { copyFile, readdir, stat, writeFile } from 'fs/promises'
+import { copyFile, readFile, readdir, stat, writeFile } from 'fs/promises'
+import { createRequire } from 'module'
 import path, { join, resolve } from 'path'
 import createPrintPlugin from 'plugins/esbuild.print.plugin'
 import { pipeline } from 'stream'
@@ -15,6 +16,8 @@ import { buildAppInstaller } from './build/appinstaller-builder'
 import { config as electronBuilderConfig } from './build/electron-builder.config'
 import esbuildConfig from './esbuild.config'
 import { version } from './package.json'
+
+const require = createRequire(import.meta.url)
 
 /**
  * @returns Hash string
@@ -89,6 +92,55 @@ async function buildElectron(config: Configuration, dir: boolean) {
   )
 }
 
+async function prepareNsisTemplateWorkaround() {
+  if (process.platform !== 'win32') {
+    return
+  }
+
+  const nsisTargetPath = require.resolve('app-builder-lib/out/targets/nsis/NsisTarget.js')
+  const appBuilderLibDir = path.dirname(path.dirname(path.dirname(path.dirname(nsisTargetPath))))
+  const shortNsisDir = 'C:\\bc-nsis'
+  const shortIncludeDir = join(shortNsisDir, 'include')
+
+  const original = await readFile(nsisTargetPath, 'utf8')
+  let patched = original
+
+  if (!patched.includes('BC_NSIS_TEMPLATES_DIR')) {
+    patched = patched.replace(
+      'const USE_NSIS_BUILT_IN_COMPRESSOR = false;\n',
+      'const USE_NSIS_BUILT_IN_COMPRESSOR = false;\nconst bcNsisTemplatesDir = process.env.BC_NSIS_TEMPLATES_DIR || nsisUtil_1.nsisTemplatesDir;\n',
+    )
+    patched = patched.replace(
+      '? await (0, fs_extra_1.readFile)(path.join(nsisUtil_1.nsisTemplatesDir, "portable.nsi"), "utf8")',
+      '? await (0, fs_extra_1.readFile)(path.join(bcNsisTemplatesDir, "portable.nsi"), "utf8")',
+    )
+    patched = patched.replace(
+      'const script = await (0, fs_extra_1.readFile)(customScriptPath || path.join(nsisUtil_1.nsisTemplatesDir, "installer.nsi"), "utf8");',
+      'const script = await (0, fs_extra_1.readFile)(customScriptPath || path.join(bcNsisTemplatesDir, "installer.nsi"), "utf8");',
+    )
+    patched = patched.replace(
+      'cwd: nsisUtil_1.nsisTemplatesDir,',
+      'cwd: bcNsisTemplatesDir,',
+    )
+    patched = patched.replace(
+      'const includeDir = path.join(nsisUtil_1.nsisTemplatesDir, "include");\n        scriptGenerator.include(path.join(includeDir, "StdUtils.nsh"));',
+      'const includeDir = process.env.BC_NSIS_INCLUDE_DIR || path.join(bcNsisTemplatesDir, "include");\n        scriptGenerator.include(path.join(includeDir, "StdUtils.nsh"));',
+    )
+    patched = patched.replace(
+      'scriptGenerator.include(path.join(path.join(nsisUtil_1.nsisTemplatesDir, "include"), "FileAssociation.nsh"));',
+      'scriptGenerator.include(path.join(path.join(bcNsisTemplatesDir, "include"), "FileAssociation.nsh"));',
+    )
+  }
+
+  if (patched !== original) {
+    await writeFile(nsisTargetPath, patched)
+  }
+
+  await copy(join(appBuilderLibDir, 'templates', 'nsis'), shortNsisDir, { overwrite: true })
+  process.env.BC_NSIS_TEMPLATES_DIR = shortNsisDir
+  process.env.BC_NSIS_INCLUDE_DIR = shortIncludeDir
+}
+
 async function start() {
   if (process.env.BUILD_TARGET === 'none') {
     await buildMain(esbuildConfig)
@@ -97,6 +149,7 @@ async function start() {
   const dir = !(process.env.BUILD_TARGET || (process.env.RELEASE === 'true'))
   // Create empty binding.gyp to let electron-rebuild trigger rebuild to it
   await ensureFile(resolve(__dirname, 'node_modules', 'node_datachannel', 'binding.gyp'))
+  await prepareNsisTemplateWorkaround()
   const config: Configuration = {
     ...electronBuilderConfig,
     async beforeBuild(context) {
