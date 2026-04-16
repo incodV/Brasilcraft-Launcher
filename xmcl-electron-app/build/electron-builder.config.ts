@@ -82,7 +82,7 @@ export const config = {
     verifyUpdateCodeSignature: false,
     target: [
       {
-        target: 'portable',
+        target: 'nsis',
         arch: [
           'x64',
         ],
@@ -95,8 +95,16 @@ export const config = {
       },
     ],
   },
-  portable: {
-    artifactName: 'brasilcraft-launcher-portable-${version}-${arch}.${ext}',
+  nsis: {
+    artifactName: 'Brasilcraft-Launcher-Setup-${version}-${arch}.${ext}',
+    oneClick: false,
+    allowToChangeInstallationDirectory: true,
+    allowElevation: true,
+    perMachine: false,
+    createDesktopShortcut: 'always',
+    createStartMenuShortcut: true,
+    shortcutName: 'Brasilcraft Launcher',
+    uninstallDisplayName: 'Brasilcraft Launcher',
   },
   linux: {
     executableName: 'brasilcraft-launcher',

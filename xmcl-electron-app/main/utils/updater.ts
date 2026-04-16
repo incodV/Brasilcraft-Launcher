@@ -14,7 +14,7 @@ import {
 import { DownloadUpdateOptions, LauncherAppUpdater } from '@xmcl/runtime/app'
 import { AnyError, isSystemError } from '@xmcl/utils'
 import { spawn } from 'child_process'
-import { app, shell } from 'electron'
+import { shell } from 'electron'
 import * as updater from 'electron-updater'
 import { AppUpdater, CancellationToken, UpdaterSignal } from 'electron-updater'
 import { createReadStream, createWriteStream } from 'fs'
@@ -23,7 +23,6 @@ import { closeSync, existsSync, open, rename, unlink } from 'original-fs'
 import { platform } from 'os'
 import { basename, dirname, join } from 'path'
 import { pipeline } from 'stream/promises'
-import { setTimeout } from 'timers/promises'
 import { promisify } from 'util'
 import { createGunzip } from 'zlib'
 import { Logger, kGFW } from '~/infra'
@@ -33,6 +32,9 @@ import ElectronLauncherApp from '../ElectronLauncherApp'
 import { ensureElevateExe } from './elevate'
 
 const kPatched = Symbol('Patched')
+const BRASILCRAFT_REPOSITORY_OWNER = 'incodV'
+const BRASILCRAFT_REPOSITORY_NAME = 'Brasilcraft-Launcher'
+const BRASILCRAFT_RELEASES_URL = `https://github.com/${BRASILCRAFT_REPOSITORY_OWNER}/${BRASILCRAFT_REPOSITORY_NAME}/releases`
 
 /**
  * Only download asar file update.
@@ -61,8 +63,8 @@ async function downloadAsarUpdate(
 
   const gfw = await app.registry.get(kGFW)
   const urls = gfw.inside
-    ? [`https://github.com/Voxelum/x-minecraft-launcher/releases/download/v${version}/${file}`]
-    : [`https://github.com/Voxelum/x-minecraft-launcher/releases/download/v${version}/${file}`]
+    ? [`https://github.com/${BRASILCRAFT_REPOSITORY_OWNER}/${BRASILCRAFT_REPOSITORY_NAME}/releases/download/v${version}/${file}`]
+    : [`https://github.com/${BRASILCRAFT_REPOSITORY_OWNER}/${BRASILCRAFT_REPOSITORY_NAME}/releases/download/v${version}/${file}`]
 
   const errors: Error[] = []
 
@@ -120,7 +122,7 @@ async function downloadAsarUpdate(
 }
 
 async function hintUserDownload(): Promise<void> {
-  shell.openExternal('https://xmcl.app')
+  shell.openExternal(BRASILCRAFT_RELEASES_URL)
 }
 
 async function downloadAppInstaller(
@@ -130,20 +132,11 @@ async function downloadAppInstaller(
     tracker?: Tracker<DownloadUpdateTrackerEvents>
   } & DownloadBaseOptions,
 ): Promise<void> {
-  const destination = join(app.getPath('downloads'), 'X Minecraft Launcher.appinstaller')
-  const url = 'https://xmcl.blob.core.windows.net/releases/xmcl.appinstaller'
-
-  await download({
-    url,
-    destination,
-    tracker: onDownloadSingle(options?.tracker, 'download-update.appx', { url }),
-    signal: options?.abortSignal,
-    ...getDownloadBaseOptions(options),
+  options?.tracker?.({
+    phase: 'download-update.manual',
+    payload: {},
   })
-
-  shell.showItemInFolder(destination)
-  await setTimeout(1000)
-  await shell.openPath(destination)
+  await shell.openExternal(`${BRASILCRAFT_RELEASES_URL}/latest`)
   launcherApp.exit()
 }
 
@@ -191,7 +184,7 @@ async function downloadFullUpdate(
         createRequest: (options: any, callback: any) => {
           if (gfw.inside) {
             options.hostname = 'files.0xc.cn'
-            options.pathname = `/Soft_Mirrors/github-release/Voxelum/x-minecraft-launcher/LatestRelease/${basename(options.pathname)}`
+            options.pathname = `/Soft_Mirrors/github-release/${BRASILCRAFT_REPOSITORY_OWNER}/${BRASILCRAFT_REPOSITORY_NAME}/LatestRelease/${basename(options.pathname)}`
             app.emit('download-cdn', 'electron', basename(options.pathname))
           }
           return createRequest(options, callback)
@@ -243,31 +236,31 @@ export class ElectronUpdater implements LauncherAppUpdater {
 
   async #getUpdateFromSelfHost(): Promise<ReleaseInfo> {
     const app = this.app
-    this.logger.log('Try get update from selfhost')
-    const { allowPrerelease, locale } = await app.registry.get(kSettings)
-    const queryString = `version=v${app.version}&prerelease=${allowPrerelease || false}`
-    const response = await this.app
-      .fetch(`https://api.xmcl.app/latest?${queryString}`, {
-        headers: {
-          'Accept-Language': locale,
-        },
-      })
-      .catch(() =>
-        this.app.fetch(`https://xmcl-core-api.azurewebsites.net/api/latest?${queryString}`, {
-          headers: {
-            'Accept-Language': locale,
-          },
-        }),
-      )
+    this.logger.log('Try get update from Brasilcraft GitHub releases')
+    const { allowPrerelease } = await app.registry.get(kSettings)
+    const releaseApiUrl = allowPrerelease
+      ? `https://api.github.com/repos/${BRASILCRAFT_REPOSITORY_OWNER}/${BRASILCRAFT_REPOSITORY_NAME}/releases`
+      : `https://api.github.com/repos/${BRASILCRAFT_REPOSITORY_OWNER}/${BRASILCRAFT_REPOSITORY_NAME}/releases/latest`
+    const response = await this.app.fetch(releaseApiUrl, {
+      headers: {
+        Accept: 'application/vnd.github+json',
+      },
+    })
     if (!response.ok) {
       throw new AnyError(
         'UpdateError',
-        `Fail to get update from selfhost: ${await response.text()}`,
+        `Fail to get update from Brasilcraft GitHub releases: ${await response.text()}`,
         {},
         { status: response.status },
       )
     }
-    const result = (await response.json()) as any
+    const payload = await response.json() as any
+    const result = Array.isArray(payload)
+      ? payload.find((release) => allowPrerelease || !release.prerelease)
+      : payload
+    if (!result) {
+      throw new AnyError('UpdateError', 'No release found in Brasilcraft GitHub repository', {})
+    }
     const files = result.assets.map((a: any) => ({
       url: a.browser_download_url,
       name: a.name,
@@ -401,17 +394,11 @@ export class ElectronUpdater implements LauncherAppUpdater {
   }
 
   async checkUpdateTask(): Promise<ReleaseInfo> {
-    if (this.app.platform.os === 'windows' || this.app.platform.os === 'osx') {
-      return this.#getUpdateFromSelfHost()
-    }
     try {
       return await this.#getUpdateFromAutoUpdater()
     } catch (e) {
-      if (isSystemError(e) && e.code === 'ENOENT') {
-        return this.#getUpdateFromSelfHost()
-      }
       this.logger.warn(e as Error)
-      throw e
+      return this.#getUpdateFromSelfHost()
     }
   }
 
