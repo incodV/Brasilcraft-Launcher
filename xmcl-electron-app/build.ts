@@ -1,5 +1,6 @@
 import { rebuild } from '@electron/rebuild'
 import chalk from 'chalk'
+import { execFile } from 'child_process'
 import { createHash } from 'crypto'
 import { Configuration, build as electronBuilder } from 'electron-builder'
 import { BuildOptions, build as esbuild } from 'esbuild'
@@ -49,6 +50,43 @@ async function buildMain(options: BuildOptions, slient = false) {
   await copy(path.join(__dirname, '../xmcl-keystone-ui/dist'), path.join(__dirname, './dist/renderer'))
   if (!slient) console.log('\n')
   return time
+}
+
+async function findRcedit(): Promise<string | undefined> {
+  const localAppData = process.env.LOCALAPPDATA
+  if (!localAppData) return
+  const cacheDir = join(localAppData, 'electron-builder', 'Cache', 'winCodeSign')
+  if (!existsSync(cacheDir)) return
+
+  for (const entry of await readdir(cacheDir)) {
+    const candidate = join(cacheDir, entry, process.arch === 'ia32' ? 'rcedit-ia32.exe' : 'rcedit-x64.exe')
+    if (existsSync(candidate)) {
+      return candidate
+    }
+  }
+}
+
+async function patchWindowsExecutableIcon(appOutDir: string) {
+  if (process.platform !== 'win32') return
+
+  const executablePath = join(appOutDir, 'Brasilcraft-Laucher.exe')
+  const iconPath = join(__dirname, 'icons', 'dark.ico')
+  if (!existsSync(executablePath) || !existsSync(iconPath)) return
+
+  const rceditPath = await findRcedit()
+  if (!rceditPath) {
+    console.log(`  ${chalk.yellow('•')} skip executable icon patch ${chalk.yellow('reason')}=rcedit-not-found`)
+    return
+  }
+
+  await promisify(execFile)(rceditPath, [
+    executablePath,
+    '--set-icon', iconPath,
+    '--set-version-string', 'ProductName', 'Brasilcraft Launcher',
+    '--set-version-string', 'FileDescription', 'Brasilcraft Launcher',
+    '--set-version-string', 'CompanyName', 'Brasilcraft',
+  ])
+  console.log(`  ${chalk.blue('•')} patched executable icon ${chalk.blue('path')}=${executablePath}`)
 }
 
 /**
@@ -173,6 +211,8 @@ async function start() {
       console.log(`  ${chalk.blue('â€¢')} compiled main process & preload in ${chalk.blue('time')}=${time}s`)
     },
     async afterPack(context) {
+      await patchWindowsExecutableIcon(context.appOutDir)
+
       const suffix = context.arch === 3 ? '-arm64' : context.arch === 0 ? '-ia32' : ''
       const platformName = (process.platform === 'win32' ? 'win' : process.platform === 'darwin' ? 'mac' : 'linux') + suffix
 
