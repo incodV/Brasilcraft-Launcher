@@ -8,11 +8,81 @@ import { InstanceOrGroupData } from './instanceGroup'
 
 export const kInstances: InjectionKey<ReturnType<typeof useInstances>> = Symbol('Instances')
 
+const BRASILCRAFT_SERVER = {
+  host: 'jogarbrasilcraft.com',
+  port: 25565,
+}
+
+type BrasilcraftProfileDefault = {
+  id: string
+  name: string
+  author: string
+  description: string
+  url: string
+  runtime: {
+    minecraft: string
+    forge: string
+    fabricLoader: string
+    quiltLoader: string
+    neoForged: string
+    optifine: string
+    labyMod: string
+  }
+  server: {
+    host: string
+    port: number
+  }
+  hideLauncher: boolean
+  fastLaunch: boolean
+  preserveRuntime?: boolean
+}
+
+const BRASILCRAFT_PROFILE_DEFAULTS: BrasilcraftProfileDefault[] = [
+  {
+    id: 'brasilcraft-minigames',
+    name: 'Brasilcraft Minigames',
+    author: 'Brasilcraft',
+    description: 'Perfil rapido dos Minigames Brasilcraft',
+    url: 'https://www.brasilcraft.net',
+    runtime: {
+      minecraft: '1.8',
+      forge: '',
+      fabricLoader: '',
+      quiltLoader: '',
+      neoForged: '',
+      optifine: '',
+      labyMod: '',
+    },
+    server: BRASILCRAFT_SERVER,
+    hideLauncher: true,
+    fastLaunch: true,
+  },
+  {
+    id: 'brasilcraft-survival',
+    name: 'Brasilcraft Survival',
+    author: 'Brasilcraft',
+    description: 'Perfil rapido do Survival Brasilcraft',
+    url: 'https://www.brasilcraft.net',
+    runtime: {
+      minecraft: '1.21.11',
+      forge: '',
+      fabricLoader: '',
+      quiltLoader: '',
+      neoForged: '',
+      optifine: '',
+      labyMod: '',
+    },
+    server: BRASILCRAFT_SERVER,
+    hideLauncher: true,
+    fastLaunch: true,
+  },
+]
+
 /**
  * Hook of a view of all instances & some deletion/selection functions
  */
 export function useInstances() {
-  const { createInstance, getSharedInstancesState, editInstance, deleteInstance, validateInstancePath } = useService(InstanceServiceKey)
+  const { getSharedInstancesState, editInstance, deleteInstance, validateInstancePath, acquireInstanceById } = useService(InstanceServiceKey)
   const { state, isValidating, error } = useState(getSharedInstancesState, class extends InstanceState {
     constructor() {
       super()
@@ -78,7 +148,58 @@ export function useInstances() {
   })
 
   async function edit(options: EditInstanceOptions & { instancePath: string }) {
-    await editInstance(options)
+    await editInstance({
+      ...options,
+      server: { ...BRASILCRAFT_SERVER },
+    })
+  }
+
+  async function ensureBrasilcraftServer(instancePath: string) {
+    const currentInstance = state.value?.all[instancePath]
+    if (!currentInstance) return
+
+    const hasBrasilcraftServer = currentInstance.server?.host === BRASILCRAFT_SERVER.host &&
+      currentInstance.server?.port === BRASILCRAFT_SERVER.port
+
+    if (!hasBrasilcraftServer) {
+      await editInstance({
+        instancePath,
+        server: { ...BRASILCRAFT_SERVER },
+      })
+    }
+  }
+
+  async function ensureBrasilcraftProfile(profile: BrasilcraftProfileDefault) {
+    const instancePath = await acquireInstanceById(profile.id)
+    const currentInstance = state.value?.all[instancePath]
+    const shouldPreserveRuntime = profile.preserveRuntime && currentInstance?.runtime?.minecraft
+
+    await editInstance({
+      instancePath,
+      name: profile.name,
+      author: profile.author,
+      description: profile.description,
+      url: profile.url,
+      server: { ...profile.server },
+      runtime: shouldPreserveRuntime ? { ...currentInstance.runtime } : { ...profile.runtime },
+      hideLauncher: profile.hideLauncher,
+      fastLaunch: profile.fastLaunch,
+    })
+
+    return instancePath
+  }
+
+  async function ensureBrasilcraftProfiles() {
+    const paths = await Promise.all(BRASILCRAFT_PROFILE_DEFAULTS.map(ensureBrasilcraftProfile))
+    return {
+      minigames: paths[0],
+      survival: paths[1],
+    }
+  }
+
+  async function createDefaultBrasilcraftInstance() {
+    const profiles = await ensureBrasilcraftProfiles()
+    return profiles.survival
   }
   async function remove(instancePath: string, deleteData = true) {
     const index = instances.value.findIndex(i => i.path === instancePath)
@@ -87,9 +208,7 @@ export function useInstances() {
     if (instancePath === lastSelected) {
       path.value = instances.value[Math.max(index - 1, 0)]?.path ?? ''
       if (!path.value) {
-        createInstance({
-          name: 'Minecraft',
-        }).then(p => {
+        createDefaultBrasilcraftInstance().then(p => {
           path.value = p
         })
       }
@@ -99,7 +218,9 @@ export function useInstances() {
     if (!newVal) return
     if (!oldVal) {
       // initialize
-      const instances = [...newVal.instances]
+      await ensureBrasilcraftProfiles()
+
+      const instances = [...state.value?.instances ?? newVal.instances]
       const lastSelectedPath = _path.value
 
       const selectDefault = async () => {
@@ -107,9 +228,7 @@ export function useInstances() {
         let defaultPath = instances[0]?.path as string | undefined
         if (!defaultPath) {
           // Create a default instance
-          defaultPath = await createInstance({
-            name: 'Minecraft',
-          })
+          defaultPath = await createDefaultBrasilcraftInstance()
         }
         _path.value = defaultPath
       }
@@ -130,6 +249,11 @@ export function useInstances() {
       path.value = _path.value
     }
   })
+  watch(instances, (newInstances) => {
+    for (const instance of newInstances) {
+      ensureBrasilcraftServer(instance.path).catch(console.error)
+    }
+  }, { immediate: true })
   watch(path, (newPath) => {
     if (newPath !== _path.value) {
       // save to local storage

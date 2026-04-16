@@ -260,6 +260,18 @@ a {
     color: hsla(0, 0%, 100%, .7);
 }
 
+.v-application .v-btn.primary,
+.v-application .v-btn.primary .v-btn__content,
+.v-application .v-btn.success,
+.v-application .v-btn.success .v-btn__content {
+    color: #fff8dc !important;
+}
+
+.v-application .v-btn.warning,
+.v-application .v-btn.warning .v-btn__content {
+    color: #1d1603 !important;
+}
+
 .menuable__content__active ::-webkit-scrollbar {
     display: unset;
 }

@@ -92,7 +92,7 @@
         color="primary"
         rounded
         large
-        class="text-white"
+        class="text-white login-submit-button"
         @click="onLogin"
       >
         <span v-if="!isLogining">
@@ -410,5 +410,9 @@ watch(() => props.options, (options) => {
   padding-left: 50px;
   padding-right: 50px;
   padding-bottom: 0px;
+}
+
+.login-submit-button {
+  color: #fff8dc !important;
 }
 </style>

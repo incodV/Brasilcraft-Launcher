@@ -23,24 +23,6 @@
         class="sidebar-notch__container"
         :style="containerStyles"
       >
-        <!-- My Stuff -->
-        <AppSideBarNotchItem
-          id="my-stuff-button"
-          icon="widgets"
-          :icon-size="iconSize"
-          :tooltip="() => ({ text: t('myStuff'), direction: tooltipDirection })"
-          to="/me"
-        />
-
-        <!-- Store -->
-        <AppSideBarNotchItem
-          v-if="true"
-          icon="store"
-          :icon-size="iconSize"
-          :tooltip="() => ({ text: t('store.name', 2), direction: tooltipDirection })"
-          to="/store"
-        />
-
         <div class="sidebar-notch__divider moveable" />
 
         <!-- Instance List (compact mode) -->

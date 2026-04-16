@@ -3,6 +3,12 @@ import { BuiltinImages } from '@/constant'
 import { InstanceData } from '@xmcl/instance'
 
 export function getInstanceIcon(instance: InstanceData, status: ServerStatus | undefined) {
+  const isBrasilcraft = instance.name?.toLowerCase().includes('brasilcraft') ||
+    instance.server?.host === 'jogarbrasilcraft.com'
+
+  if (isBrasilcraft) {
+    return instance.icon || BuiltinImages.minecraft
+  }
   if (status?.favicon && status?.favicon !== BuiltinImages.unknownServer) {
     return status?.favicon
   } else if (instance.server) {

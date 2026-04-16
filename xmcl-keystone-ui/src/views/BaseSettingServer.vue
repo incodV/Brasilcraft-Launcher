@@ -12,7 +12,7 @@
     <v-list-item>
       <v-list-item-content>
         <v-list-item-title>
-          {{ t("server.host") }}
+          Servidor Brasilcraft
         </v-list-item-title>
       </v-list-item-content>
       <v-list-item-action>
@@ -20,8 +20,8 @@
           v-model="data.host"
           hide-details
           solo
-
-          placeholder="www.whatever.com"
+          readonly
+          disabled
           required
         />
       </v-list-item-action>
@@ -29,7 +29,7 @@
     <v-list-item>
       <v-list-item-content>
         <v-list-item-title>
-          {{ t("server.port") }}
+          Porta do servidor
         </v-list-item-title>
       </v-list-item-content>
       <v-list-item-action>
@@ -37,10 +37,18 @@
           v-model="data.port"
           solo
           hide-details
-          placeholder="25565"
+          readonly
+          disabled
           required
         />
       </v-list-item-action>
+    </v-list-item>
+    <v-list-item>
+      <v-list-item-content>
+        <v-list-item-subtitle>
+          Este launcher e dedicado ao Brasilcraft. Todas as instancias entram pelo servidor jogarbrasilcraft.com.
+        </v-list-item-subtitle>
+      </v-list-item-content>
     </v-list-item>
   </v-list>
 </template>

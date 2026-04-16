@@ -8,9 +8,9 @@ import { copy, emptyDir, ensureFile } from 'fs-extra'
 import { copyFile, readdir, stat, writeFile } from 'fs/promises'
 import path, { join, resolve } from 'path'
 import createPrintPlugin from 'plugins/esbuild.print.plugin'
-import { createGzip } from 'zlib'
 import { pipeline } from 'stream'
 import { promisify } from 'util'
+import { createGzip } from 'zlib'
 import { buildAppInstaller } from './build/appinstaller-builder'
 import { config as electronBuilderConfig } from './build/electron-builder.config'
 import esbuildConfig from './esbuild.config'
@@ -63,7 +63,7 @@ async function buildElectron(config: Configuration, dir: boolean) {
     ...(dir ? {
       dir: true,
       x64: true,
-      arm64: process.platform !== 'win32'
+      arm64: process.platform !== 'win32',
     } : {}),
   })
 
@@ -100,19 +100,24 @@ async function start() {
   const config: Configuration = {
     ...electronBuilderConfig,
     async beforeBuild(context) {
-      const rebuildProcess = rebuild({
-        buildPath: context.appDir,
-        electronVersion: context.electronVersion,
-        arch: context.arch,
-        types: ['dev'],
-      })
-      rebuildProcess.lifecycle.on('module-found', (path: string) => {
-        console.log(`  ${chalk.blue('•')} rebuild module ${chalk.blue('path')}=${path}`)
-      })
-      await rebuildProcess
-      console.log(`  ${chalk.blue('•')} rebuilt native modules ${chalk.blue('electron')}=${context.electronVersion} ${chalk.blue('arch')}=${context.arch}`)
+      const shouldSkipNativeRebuild = process.env.SKIP_NATIVE_REBUILD !== 'false'
+      if (shouldSkipNativeRebuild) {
+        console.log(`  ${chalk.blue('â€¢')} skip native rebuild ${chalk.blue('reason')}=SKIP_NATIVE_REBUILD`)
+      } else {
+        const rebuildProcess = rebuild({
+          buildPath: context.appDir,
+          electronVersion: context.electronVersion,
+          arch: context.arch,
+          types: ['dev'],
+        })
+        rebuildProcess.lifecycle.on('module-found', (path: string) => {
+          console.log(`  ${chalk.blue('â€¢')} rebuild module ${chalk.blue('path')}=${path}`)
+        })
+        await rebuildProcess
+        console.log(`  ${chalk.blue('â€¢')} rebuilt native modules ${chalk.blue('electron')}=${context.electronVersion} ${chalk.blue('arch')}=${context.arch}`)
+      }
       const time = await buildMain({ ...esbuildConfig, metafile: true }, true)
-      console.log(`  ${chalk.blue('•')} compiled main process & preload in ${chalk.blue('time')}=${time}s`)
+      console.log(`  ${chalk.blue('â€¢')} compiled main process & preload in ${chalk.blue('time')}=${time}s`)
     },
     async afterPack(context) {
       const suffix = context.arch === 3 ? '-arm64' : context.arch === 0 ? '-ia32' : ''
@@ -122,18 +127,29 @@ async function start() {
       const gzipDest = dest + '.gz'
       let src = join(context.appOutDir, 'resources/app.asar')
       if (!existsSync(src)) {
-        src = join(context.appOutDir, 'X Minecraft Launcher.app/Contents/Resources/app.asar')
-      } else if (!existsSync(src)) {
-        console.log(`  ${chalk.yellow('•')} fallback to ${chalk.yellow('Resources/app.asar')} for ${chalk.yellow('resources/app.asar')} not found`)
+        const possiblePaths = [
+          'Brasilcraft-Laucher.app/Contents/Resources/app.asar',
+          'X Minecraft Launcher.app/Contents/Resources/app.asar',
+        ]
+        for (const possiblePath of possiblePaths) {
+          const test = join(context.appOutDir, possiblePath)
+          if (existsSync(test)) {
+            src = test
+            break
+          }
+        }
+      }
+      if (!existsSync(src)) {
+        console.log(`  ${chalk.yellow('â€¢')} fallback to ${chalk.yellow('Resources/app.asar')} for ${chalk.yellow('resources/app.asar')} not found`)
       }
       await copyFile(src, dest)
       await writeHash('sha256', dest)
       await promisify(pipeline)(createReadStream(dest), createGzip(), createWriteStream(gzipDest))
-      console.log(`  ${chalk.blue('•')} prepare asar with checksum ${chalk.blue('from')}=${src} ${chalk.blue('to')}=${dest}`)
+      console.log(`  ${chalk.blue('â€¢')} prepare asar with checksum ${chalk.blue('from')}=${src} ${chalk.blue('to')}=${dest}`)
     },
     async artifactBuildStarted(context) {
       if (context.targetPresentableName.toLowerCase() === 'appx') {
-        console.log(`  ${chalk.blue('•')} copy appx icons`)
+        console.log(`  ${chalk.blue('â€¢')} copy appx icons`)
         const files = await readdir(path.join(__dirname, './icons'))
         const storeFiles = files.filter(f => f.endsWith('.png') &&
           !f.endsWith('256x256.png') &&
@@ -148,7 +164,7 @@ async function start() {
     async artifactBuildCompleted(context) {
       if (!context.arch) return
       if (context.target && context.target.name === 'appx') {
-        await buildAppInstaller(version, path.join(__dirname, './build/output/xmcl.appinstaller'), electronBuilderConfig.appx!.publisher!)
+        await buildAppInstaller(version, path.join(__dirname, './build/output/brasilcraft-launcher.appinstaller'), electronBuilderConfig.appx!.publisher!)
       }
     },
   }

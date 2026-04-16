@@ -23,15 +23,20 @@ let esbuild: BuildContext | null = null
  */
 function startElectron() {
   const electronPath = electron as any as string
-  const cwd = join(__dirname, '../dist')
+  const cwd = __dirname
   if (!existsSync(cwd)) {
     mkdirSync(cwd)
   }
   const spawnProcess = spawn(electronPath, [
     '--inspect=5858',
-    '--remote-debugging-port=9222',
-    join(__dirname, './dist/index.js'),
-  ], { cwd })
+    __dirname,
+  ], {
+    cwd,
+    env: {
+      ...process.env,
+      ELECTRON_RUN_AS_NODE: undefined,
+    },
+  })
 
   function electronLog(data: string | Buffer) {
     const colorize = (line: string) => {

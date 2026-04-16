@@ -36,7 +36,7 @@ import { kServerStatusCache, useServerStatusCache } from '@/composables/serverSt
 import { kSettingsState, useSettingsState } from '@/composables/setting'
 import { kShaderPackSearch, useShaderPackSearch } from '@/composables/shaderPackSearch'
 import { useTelemetryTrack } from '@/composables/telemetryTrack'
-import { kTheme, useTheme } from '@/composables/theme'
+import { BackgroundType, UIThemeDataV1, kTheme, useTheme } from '@/composables/theme'
 import { kTutorial, useTutorialModel } from '@/composables/tutorial'
 
 import { kNetworkStatus, useNetworkStatus } from '@/composables/useNetworkStatus'
@@ -50,6 +50,49 @@ import { provide } from 'vue'
 
 export default defineComponent({
   setup(props, ctx) {
+    const brasilcraftTheme = ref<UIThemeDataV1>({
+      dark: true,
+      backgroundMusic: [],
+      backgroundMusicPlayOrder: 'sequential',
+      backgroundImage: undefined,
+      backgroundImageDark: undefined,
+      backgroundColorOverlay: true,
+      backgroundVolume: 0,
+      backgroundImageFit: 'cover',
+      backgroundType: BackgroundType.NONE,
+      font: undefined,
+      fontSize: 16,
+      particleMode: undefined,
+      blur: {
+        background: 2,
+        card: 20,
+        appBar: 6,
+        sideBar: 8,
+      },
+      colors: {
+        lightAppBarColor: '#10200FFF',
+        lightSideBarColor: '#142613F0',
+        darkAppBarColor: '#081207F2',
+        darkSideBarColor: '#0D180CF0',
+        darkPrimaryColor: '#2F8F1E',
+        darkBackground: '#0710068F',
+        darkInfoColor: '#E0B93F',
+        darkErrorColor: '#FF6B57',
+        darkWarningColor: '#F5A90A',
+        darkSuccessColor: '#2F8F1E',
+        darkAccentColor: '#FFD34B',
+        darkCardColor: '#111D12CC',
+        lightPrimaryColor: '#2F8F1E',
+        lightBackground: '#EFF6D8FF',
+        lightInfoColor: '#B8860B',
+        lightErrorColor: '#D94D39',
+        lightWarningColor: '#C98909',
+        lightSuccessColor: '#2F8F1E',
+        lightAccentColor: '#E0B93F',
+        lightCardColor: '#F4F3D8D9',
+      },
+    })
+
     provide(kServerStatusCache, useServerStatusCache())
 
     provide(kDropHandler, useDropHandler())
@@ -124,7 +167,7 @@ export default defineComponent({
 
     const instanceTheme = useInstanceTheme(instance.path)
     provide(kInstanceTheme, instanceTheme)
-    provide(kTheme, useTheme(instanceTheme.instanceTheme, vuetify.framework))
+    provide(kTheme, useTheme(brasilcraftTheme, vuetify.framework))
 
 
     useI18nSync(vuetify.framework, settings.state)

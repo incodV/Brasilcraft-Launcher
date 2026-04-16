@@ -51,7 +51,7 @@ import { InstanceEditInjectionKey } from '../composables/instanceEdit'
 const { data } = injection(InstanceEditInjectionKey)
 const { t } = useI18n()
 const gotoHelp = () => {
-  window.open('https://xmcl.app/faq/', 'browser')
+  window.open('https://www.brasilcraft.net', 'browser')
 }
 
 </script>

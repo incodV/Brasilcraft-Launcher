@@ -1,17 +1,17 @@
 {
-    "name": "xmcl",
+    "name": "brasilcraft-launcher",
     "private": true,
     "main": "./index.js",
     "version": "0.54.4",
     "author": "ci010 <cijhn@hotmail.com>",
-    "description": "X Minecraft Launcher - A modern Minecraft launcher",
+    "description": "Brasilcraft-Laucher - custom Minecraft launcher for Brasilcraft community",
     "license": "MIT",
     "engines": {
         "node": ">=20"
     },
     "repository": {
         "type": "git",
-        "url": "https://github.com/voxelum/x-minecraft-launcher"
+        "url": "https://github.com/incodV/Brasilcraft-Launcher.git"
     },
     "msstoreCliAppId": "9MXJWHXTP4B9",
     "scripts": {

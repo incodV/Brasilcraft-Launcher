@@ -1,5 +1,6 @@
 import unknownServer from '@/assets/unknown_server.webp'
 import minecraft from '@/assets/minecraft.webp'
+import brasilcraftLogo from '@/assets/logobrasilcraft.webp'
 import forge from '@/assets/forge.webp'
 import fabric from '@/assets/fabric.webp'
 import quilt from '@/assets/quilt.svg'
@@ -13,7 +14,7 @@ import oculus from '@/assets/oculus.webp'
 import prism from '@/assets/prism.png'
 
 export const BuiltinImages = {
-  minecraft,
+  minecraft: brasilcraftLogo,
   forge,
   fabric,
   quilt,
@@ -22,8 +23,8 @@ export const BuiltinImages = {
   iris,
   mmc,
   labyMod,
-  craftingTable,
-  unknownServer,
+  craftingTable: brasilcraftLogo,
+  unknownServer: brasilcraftLogo,
   oculus,
   prism,
 }

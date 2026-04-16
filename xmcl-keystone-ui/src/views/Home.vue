@@ -5,7 +5,7 @@
   >
     <HomeCriticalError />
     <transition name="slide-y-reverse-transition" mode="out-in">
-      <div v-if="!isFocus" class="mx-3 relative" >
+      <div v-if="!isFocus" class="mx-3 relative">
         <Transition name="slide-y-reverse-transition">
           <div class="flex items-center justify-center gap-1 sticky top-40 z-3">
             <v-divider
@@ -21,6 +21,7 @@
             />
           </div>
         </Transition>
+        <HomeBrasilcraftQuickPlay />
         <HomeGrid />
         <HomeUpstreamCurseforge
           v-if="instance.upstream && instance.upstream.type === 'curseforge-modpack'"
@@ -53,6 +54,7 @@ import { useTutorial } from '@/composables/tutorial'
 import { useInFocusMode } from '@/composables/uiLayout'
 import { injection } from '@/util/inject'
 import type { DriveStep } from 'driver.js'
+import HomeBrasilcraftQuickPlay from './HomeBrasilcraftQuickPlay.vue'
 import HomeCriticalError from './HomeCriticalError.vue'
 import HomeFocusFooter from './HomeFocusFooterV2.vue'
 import HomeGrid from './HomeGrid.vue'
@@ -95,7 +97,6 @@ useTutorial(computed(() => {
     { element: '#user-avatar', popover: { title: t('userAccount.add'), description: t('tutorial.userAccountDescription') } },
     { element: '#create-instance-button', popover: { title: t('instances.add'), description: t('tutorial.instanceAddDescription') } },
     { element: '#launch-button', popover: { title: t('launch.launch'), description: t('tutorial.launchDescription') } },
-    { element: '#feedback-button', popover: { title: t('feedback.name'), description: t('tutorial.feedbackDescription') } },
   ]
   return steps
 }))

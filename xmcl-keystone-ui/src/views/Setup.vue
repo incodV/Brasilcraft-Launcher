@@ -103,15 +103,16 @@
   >
     <v-img
       class="max-w-50"
-      src="http://launcher/icons/logoDark"
+      :src="brasilcraftLogo"
     />
   </v-card>
 </template>
 
 <script lang=ts setup>
+import brasilcraftLogo from '@/assets/logobrasilcraft.png'
 import { useService } from '@/composables'
 import { kSettingsState } from '@/composables/setting'
-import { BackgroundType, kTheme } from '@/composables/theme'
+import { kTheme } from '@/composables/theme'
 import { injection } from '@/util/inject'
 import { BaseServiceKey, Drive, InvalidDirectoryErrorCode } from '@xmcl/runtime-api'
 import SetupAccount from './SetupAccount.vue'
@@ -121,7 +122,7 @@ import SetupFooter from './SetupFooter.vue'
 import SetLocale from './SetupLocale.vue'
 
 const emit = defineEmits(['ready'])
-const { validateDataDictionary, getEnvironment } = useService(BaseServiceKey)
+const { validateDataDictionary } = useService(BaseServiceKey)
 
 const next = () => {
   data.step = Number(data.step) + 1
@@ -138,11 +139,6 @@ const localeRef = computed({
   },
 })
 
-const currentTitle = computed(() => {
-  if (data.step === 1) return t('setup.locale.name')
-  if (data.step === 2) return t('setup.dataRoot.name')
-  return t('setup.game.name')
-})
 const data = reactive({
   step: 1,
   fetching: true,
@@ -183,7 +179,7 @@ watch(() => data.path, (newPath) => {
   })
 })
 
-const { isDark, backgroundType, currentTheme } = injection(kTheme)
+const { currentTheme } = injection(kTheme)
 
 const updateTheme = (theme: 'dark' | 'system' | 'light') => {
   if (theme === 'system') {
@@ -205,11 +201,6 @@ const { state } = injection(kSettingsState)
 
 async function setup() {
   await bootstrap.bootstrap(data.path)
-  getEnvironment().then((e) => {
-    if (e.gpu && isDark.value) {
-      currentTheme.value.backgroundType = BackgroundType.HALO
-    }
-  })
   emit('ready', data)
   if (state.value) {
     state.value.localeSet(locale.value)

@@ -5,23 +5,23 @@ import type { Configuration } from 'electron-builder'
 dotenv()
 
 export const config = {
-  productName: 'X Minecraft Launcher',
-  appId: 'xmcl',
+  productName: 'Brasilcraft-Laucher',
+  appId: 'brasilcraft.launcher',
   directories: {
     output: 'build/output',
     buildResources: 'build',
     app: '.',
   },
   protocols: {
-    name: 'XMCL',
-    schemes: ['xmcl'],
+    name: 'Brasilcraft-Laucher',
+    schemes: ['brasilcraft'],
   },
   // assign publish for auto-updater
   // set this to your own repo!
   publish: [{
     provider: 'github',
-    owner: 'voxelum',
-    repo: 'x-minecraft-launcher',
+    owner: process.env.GITHUB_RELEASE_OWNER || 'incodV',
+    repo: process.env.GITHUB_RELEASE_REPO || 'Brasilcraft-Launcher',
   }],
   files: [{
     from: 'dist',
@@ -32,18 +32,18 @@ export const config = {
     to: '.',
     filter: 'package.json',
   }],
-  artifactName: 'xmcl-${version}-${platform}-${arch}.${ext}',
+  artifactName: 'brasilcraft-launcher-${version}-${platform}-${arch}.${ext}',
   appx: {
-    displayName: 'X Minecraft Launcher',
-    applicationId: 'xmcl',
-    identityName: 'xmcl',
+    displayName: 'Brasilcraft-Laucher',
+    applicationId: 'brasilcraft.launcher',
+    identityName: 'brasilcraft-launcher',
     backgroundColor: 'transparent',
     publisher: process.env.PUBLISHER,
     publisherDisplayName: 'CI010',
     setBuildNumber: true,
   },
   dmg: {
-    artifactName: 'xmcl-${version}-${arch}.${ext}',
+    artifactName: 'brasilcraft-launcher-${version}-${arch}.${ext}',
     contents: [
       {
         x: 410,
@@ -78,26 +78,35 @@ export const config = {
     certificateFile: undefined as string | undefined,
     publisherName: 'CI010',
     icon: 'icons/dark.ico',
+    signAndEditExecutable: false,
+    verifyUpdateCodeSignature: false,
     target: [
+      {
+        target: 'portable',
+        arch: [
+          'x64',
+        ],
+      },
       {
         target: 'zip',
         arch: [
           'x64',
-          'ia32',
         ],
       },
-      'appx',
     ],
   },
+  portable: {
+    artifactName: 'brasilcraft-launcher-portable-${version}-${arch}.${ext}',
+  },
   linux: {
-    executableName: 'xmcl',
+    executableName: 'brasilcraft-launcher',
     desktop: {
-      MimeType: 'x-scheme-handler/xmcl',
-      StartupWMClass: 'xmcl',
+      MimeType: 'x-scheme-handler/brasilcraft',
+      StartupWMClass: 'brasilcraft-launcher',
     },
     category: 'Game',
     icon: 'icons/dark.icns',
-    artifactName: 'xmcl-${version}-${arch}.${ext}',
+    artifactName: 'brasilcraft-launcher-${version}-${arch}.${ext}',
     target: [
       { target: 'deb', arch: ['x64', 'arm64'] },
       { target: 'rpm', arch: ['x64', 'arm64'] },

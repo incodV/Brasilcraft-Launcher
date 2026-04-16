@@ -19,13 +19,14 @@
       }"
     >
       <div
-        class="align-center flex max-h-20 flex-1 flex-grow-0 items-baseline pl-6 pr-2 gap-1"
+        class="align-center flex max-h-20 flex-1 flex-grow-0 items-baseline pl-6 pr-2 gap-3"
       >
+        <img :src="logo" alt="Brasilcraft-Laucher" class="home-header-logo" />
         <span
           :style="{
             fontSize: headerFontSize
           }"
-          class="overflow-hidden overflow-ellipsis whitespace-nowrap transition-all"
+          class="overflow-hidden overflow-ellipsis whitespace-nowrap transition-all home-header-title"
         >{{ name || `Minecraft ${version.minecraft}` }}</span>
         <router-view name="route" />
         <div class="flex-grow" />
@@ -76,6 +77,7 @@
 </template>
 
 <script lang=ts setup>
+import logo from '@/assets/logobrasilcraft.webp'
 import Hint from '@/components/Hint.vue'
 import { useDialog } from '@/composables/dialog'
 import { kDropHandler } from '@/composables/dropHandler'
@@ -149,4 +151,16 @@ const overcount = ref(0)
   /* background: rgba(56, 56, 56, 0.4); */
 }
 
+
+.home-header-logo {
+  width: 48px;
+  height: auto;
+  border-radius: 0.75rem;
+  object-fit: contain;
+}
+
+.home-header-title {
+  color: #fff4bf;
+  text-shadow: 0 0 16px rgba(255, 211, 75, 0.18);
+}
 </style>

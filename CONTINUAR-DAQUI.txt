@@ -1,0 +1,62 @@
+Brasilcraft Launcher - Como continuar
+
+Estado atual:
+- projeto baseado no x-minecraft-launcher
+- launcher renomeado para Brasilcraft-Laucher
+- perfis principais:
+  - Minigames 1.8
+  - Survival 1.21.11
+- perfil Custom removido
+- servidor fixado para jogarbrasilcraft.com:25565
+
+O que ja funciona:
+- launcher abre
+- minecraft ja foi iniciado pelo launcher
+- branding principal do Brasilcraft aplicado
+- build da UI funciona
+- compile do Electron funciona
+- arquivo .zip de distribuicao foi gerado
+
+Arquivos prontos:
+- xmcl-electron-app/build/output/brasilcraft-launcher-0.54.4-win32-x64.zip
+- xmcl-electron-app/build/output/win-unpacked/Brasilcraft-Laucher.exe
+
+Pendencias:
+1. subir codigo para o GitHub do Brasilcraft
+2. publicar o .zip em GitHub Releases
+3. gerar .exe final em ambiente mais limpo
+4. depois configurar atualizacao automatica
+5. depois ativar CurseForge e revisar Modrinth
+
+APIs:
+- CurseForge:
+  - suporte ja existe
+  - falta colocar CURSEFORGE_API_KEY em xmcl-electron-app/.env
+- Modrinth:
+  - ainda depende da infraestrutura herdada do XMCL
+  - ideal futuro: criar app OAuth proprio
+
+Problemas no empacotamento do .exe nesta maquina:
+- rebuild nativo pediu Visual Studio Build Tools
+- winCodeSign falhou por privilegio de symlink
+- NSIS falhou no ambiente atual
+- tentativa com IExpress nao gerou o exe final esperado
+
+Melhor proximo passo:
+1. fazer push do codigo
+2. usar o .zip no GitHub Releases
+3. tentar gerar o .exe em pasta curta ou outra maquina
+
+Comandos uteis:
+
+Build da UI:
+$env:NODE_OPTIONS='--max-old-space-size=4096'
+npx pnpm --prefix xmcl-keystone-ui build
+
+Compile do Electron:
+npx pnpm run --prefix xmcl-electron-app compile
+
+Build release:
+$env:RELEASE='true'
+$env:SKIP_NATIVE_REBUILD='true'
+npx pnpm run --prefix xmcl-electron-app build

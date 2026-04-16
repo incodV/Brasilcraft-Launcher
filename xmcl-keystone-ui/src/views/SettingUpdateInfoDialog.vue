@@ -93,7 +93,7 @@
       hover
 
       style="width: 100%"
-      to="https://github.com/voxelum/x-minecraft-launcher/releases"
+      to="https://www.brasilcraft.net"
       target="browser"
       push
     >
@@ -141,10 +141,10 @@ const hintRedownload = computed(() =>
 )
 
 const openOfficialWebsite = () => {
-  window.open('https://xmcl.app', 'browser')
+  window.open('https://www.brasilcraft.net', 'browser')
 }
 const openGithub = () => {
-  window.open('https://github.com/voxelum/x-minecraft-launcher/releases', 'browser')
+  window.open('https://www.brasilcraft.net', 'browser')
 }
 </script>
 

@@ -90,7 +90,6 @@ curseforgeCategory:
   Adventure and RPG: Adventure and RPG
   Animated: Animation
   Armor, Tools, and Weapons: Armor, tools and weapons
-  Armor， Tools， and Weapons: Armor, tools and weapons
   Combat / PvP: Competitions/PVP
   Cosmetic: Appearance/decoration
   Creation: Creative mode
@@ -1538,8 +1537,8 @@ theme:
   selectImage: Select Image
   selectMusic: Select Music
   selectVideo: Select Video
-  title: X Minecraft Launcher
-title: X Minecraft Launcher
+  title: Brasilcraft-Laucher
+title: Brasilcraft-Laucher
 transportType:
   host: Host Candidate
   prflx: Peer Reflexive Candidate

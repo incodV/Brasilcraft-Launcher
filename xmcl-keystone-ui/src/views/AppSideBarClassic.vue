@@ -22,37 +22,6 @@
         </v-icon>
       </v-list-item>
 
-      <v-list-item
-        id="my-stuff-button"
-        v-shared-tooltip.right="_ => t('myStuff')"
-        link
-        push
-        to="/me"
-        class="non-moveable"
-      >
-        <v-list-item-icon>
-          <v-icon> widgets </v-icon>
-        </v-list-item-icon>
-        <v-list-item-title v-text="t('myStuff')" />
-      </v-list-item>
-      <v-list-item
-        v-if="true"
-        v-shared-tooltip.right="_ => t('store.name', 2)"
-        link
-        push
-        to="/store"
-        class="non-moveable"
-      >
-        <v-list-item-icon>
-          <v-icon
-            :size="28"
-          >
-            store
-          </v-icon>
-        </v-list-item-icon>
-        <v-list-item-title v-text="t('store.name', 2)" />
-      </v-list-item>
-      <v-divider />
     </v-list>
 
     <div class="flex-1 h-full overflow-y-auto">
@@ -121,26 +90,6 @@
         <v-icon>arrow_back</v-icon>
       </v-btn>
 
-      <v-btn
-        id="my-stuff-button"
-        icon
-        to="/me"
-        class="non-moveable mr-1"
-        v-shared-tooltip.bottom="t('myStuff')"
-      >
-        <v-icon>widgets</v-icon>
-      </v-btn>
-
-      <v-btn
-        icon
-        to="/store"
-        class="non-moveable mr-1"
-        v-shared-tooltip.bottom="t('store.name', 2)"
-      >
-        <v-icon :size="28">store</v-icon>
-      </v-btn>
-      
-      <v-divider vertical class="mx-2 h-6" />
     </div>
 
     <div class="flex-grow-1 overflow-hidden h-full flex items-center relative" style="min-width: 0;">

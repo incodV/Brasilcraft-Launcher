@@ -1,104 +1,36 @@
 <template>
   <div class="absolute z-0 h-full w-full">
-    <transition
-      name="fade-transition"
+    <img
+      :src="defaultBackgroundImage"
+      class="absolute inset-0 h-full w-full app-background-image"
+      :style="{ filter: `blur(${blur}px)` }"
     >
-      <Particles
-        v-if="backgroundType === BackgroundType.PARTICLE"
-        color="#dedede"
-        class="absolute z-0 h-full w-full"
-        :style="{ filter: `blur(${blur}px)` }"
-        :click-mode="particleMode"
-      />
-      <Halo
-        v-else-if="backgroundType === BackgroundType.HALO"
-        class="absolute z-0 h-full w-full"
-        :style="{ filter: `blur(${blur}px)` }"
-      />
-      <img
-        v-else-if="backgroundImage?.type === 'image' && backgroundType === BackgroundType.IMAGE"
-        :key="backgroundImage.url"
-        :src="backgroundImage.url"
-        class="absolute z-0 h-full w-full"
-        :style="{ filter: `blur(${blur}px)`, 'object-fit': backgroundImageFit }"
-      >
-      <video
-        v-else-if="backgroundImage?.type === 'video' && backgroundType === BackgroundType.VIDEO"
-        ref="videoRef"
-        :key="`video-${backgroundImage.url}`"
-        class="absolute z-0 h-full w-full object-cover"
-        :style="{ filter: `blur(${blur}px)`, 'object-fit': backgroundImageFit }"
-        :src="backgroundImage.url"
-        autoplay
-        loop
-      />
-    </transition>
-
-    <transition
-      name="fade-transition"
-    >
-      <div
-        v-if="(backgroundColorOverlay && !isHome) || backgroundType === BackgroundType.NONE"
-        class="z-3 absolute h-full w-full"
-        :style="{ 'background': backgroundColor }"
-      />
-    </transition>
+    <div class="absolute inset-0 app-background-glow" />
+    <div
+      class="z-3 absolute inset-0"
+      :style="{ background: backgroundColor }"
+    />
   </div>
 </template>
 <script lang="ts" setup>
-import Halo from '@/components/Halo.vue'
-import Particles from '@/components/Particles.vue'
+import defaultBackgroundImage from '@/assets/fundo-do-carregamento.png'
 import { injection } from '@/util/inject'
-import { kTheme, BackgroundType } from '@/composables/theme'
-import { kInstanceLaunch } from '@/composables/instanceLaunch'
+import { kTheme } from '@/composables/theme'
 
-const { sideBarColor, backgroundColorOverlay, backgroundColor, blur, backgroundImage, backgroundType, particleMode, backgroundImageFit, volume } = injection(kTheme)
-const videoRef = ref(null as null | HTMLVideoElement)
-
-const route = useRoute()
-const isHome = computed(() => route.path === '/')
-
-watch(volume, (newVolume) => {
-  if (videoRef.value) {
-    videoRef.value.volume = newVolume
-  }
-})
-
-const { gameProcesses } = injection(kInstanceLaunch)
-
-watch(computed(() => gameProcesses.value.length), (cur, last) => {
-  if (cur > 0 && last === 0) {
-    videoRef.value?.pause()
-  } else if (cur === 0 && last > 0) {
-    videoRef.value?.play()
-  }
-})
-
-watch(videoRef, (v) => {
-  if (v) {
-    v.volume = volume.value
-  }
-})
-
-onMounted(() => {
-  if (videoRef.value) {
-    videoRef.value.volume = volume.value
-  }
-})
-
-watch(backgroundType, (t) => {
-  console.log(t)
-  console.log(backgroundImage.value)
-})
+const { backgroundColor, blur } = injection(kTheme)
 
 
 </script>
 <style scoped>
-.img-container {
-  background: radial-gradient(ellipse at top right, transparent, v-bind(sideBarColor) 72%);
-  position: absolute;
-  min-width: 100%;
-  min-height: 100%;
-  z-index: 4;
+.app-background-image {
+  object-fit: cover;
+  transform: scale(1.03);
+}
+
+.app-background-glow {
+  background:
+    radial-gradient(circle at top left, rgba(255, 211, 75, 0.22), transparent 28%),
+    radial-gradient(circle at top right, rgba(134, 241, 45, 0.18), transparent 30%),
+    linear-gradient(140deg, rgba(8, 18, 7, 0.18), rgba(8, 18, 7, 0.46));
 }
 </style>

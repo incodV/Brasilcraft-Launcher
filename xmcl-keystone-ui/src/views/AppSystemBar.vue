@@ -44,23 +44,6 @@
     <AppSystemBarAvatar
       v-if="!noUser"
     />
-    <AppSystemBarBadge
-      v-if="tutor"
-      id="tutor-button"
-      icon="quiz"
-      :text="t('help')"
-      can-hide-text
-      @click="tutor.start()"
-    />
-    <AppSystemBarBadge
-      v-if="!noDebug"
-      id="feedback-button"
-      icon="bug_report"
-      :text="t('feedback.name')"
-      can-hide-text
-      @click="showFeedbackDialog"
-    />
-
     <span class="flex h-full shrink grow-0 p-0">
       <v-icon
         v-if="!hideWindowControl"
@@ -97,7 +80,6 @@ import TaskSpeedMonitor from '../components/TaskSpeedMonitor.vue'
 import { injection } from '@/util/inject'
 import { useWindowStyle } from '@/composables/windowStyle'
 import AppSystemBarAvatar from './AppSystemBarUserMenu.vue'
-import { kTutorial } from '@/composables/tutorial'
 import AppSystemBarBadge from '@/components/AppSystemBarBadge.vue'
 import AppAudioPlayer from '@/components/AppAudioPlayer.vue'
 import { kTheme } from '@/composables/theme'
@@ -109,14 +91,12 @@ const props = defineProps<{
   back?: boolean
 }>()
 
-const { appBarColor, blurAppBar } = injection(kTheme)
-const { maximize, minimize, close, hide } = windowController
+const { blurAppBar } = injection(kTheme)
+const { maximize, minimize, close } = windowController
 const { shouldShiftBackControl, hideWindowControl } = useWindowStyle()
-const { show: showFeedbackDialog } = useDialog('feedback')
 const { show: showTaskDialog } = useDialog('task')
 const { t } = useI18n()
 const { count } = useTaskCount()
-const tutor = inject(kTutorial, undefined)
 
 const router = useRouter()
 const onBack = () => {
