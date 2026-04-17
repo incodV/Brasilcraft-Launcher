@@ -83,7 +83,9 @@ import { kInstanceVersionInstall } from '@/composables/instanceVersionInstall'
 import { kInstances } from '@/composables/instances'
 import { useServerStatus } from '@/composables/serverStatus'
 import { injection } from '@/util/inject'
+import { useLocalStorage } from '@vueuse/core'
 import { InstanceServiceKey } from '@xmcl/runtime-api'
+import filenamify from 'filenamify'
 
 type QuickPlayProfile = {
   id: string
@@ -156,13 +158,15 @@ const profilePaths = reactive<Record<string, string>>({})
 const busyProfileId = ref('')
 
 const { acquireInstanceById, editInstance } = useService(InstanceServiceKey)
-const { selectedInstance } = injection(kInstances)
+const { selectedInstance, instances } = injection(kInstances)
 const { launch } = injection(kInstanceLaunch)
 const { fix, instruction } = injection(kInstanceVersionInstall)
 
 const { status, refresh } = useServerStatus(ref({ host: 'jogarbrasilcraft.com', port: 25565 }), ref(undefined))
+const profilesBootstrapped = useLocalStorage('brasilcraftProfilesBootstrapped', false)
 
 const currentPath = computed(() => selectedInstance.value)
+const launcherInstances = computed(() => instances.value)
 const onlineLabel = computed(() => {
   if (status.value.players.online >= 0 && status.value.players.max >= 0) {
     return `${status.value.players.online}/${status.value.players.max} online`
@@ -173,8 +177,45 @@ const onlineLabel = computed(() => {
   return 'Status indisponivel'
 })
 
+function getManagedProfilePath(name: string) {
+  const firstInstance = launcherInstances.value[0]
+  if (!firstInstance) return ''
+
+  const separatorIndex = Math.max(firstInstance.path.lastIndexOf('/'), firstInstance.path.lastIndexOf('\\'))
+  if (separatorIndex === -1) return ''
+
+  const root = firstInstance.path.slice(0, separatorIndex)
+  return `${root}\\${filenamify(name, { replacement: '_' })}`
+}
+
+function findExistingProfilePath(profile: QuickPlayProfile) {
+  const expectedName = `Brasilcraft ${profile.name}`
+  const managedPath = getManagedProfilePath(expectedName)
+  if (managedPath && launcherInstances.value.some(instance => instance.path === managedPath)) {
+    return managedPath
+  }
+
+  const byName = launcherInstances.value.find(instance => instance.name === expectedName)
+  if (byName) {
+    return byName.path
+  }
+
+  const legacyPath = launcherInstances.value.find(instance =>
+    instance.path.endsWith(`\\${profile.id}`) || instance.path.endsWith(`/${profile.id}`))
+  if (legacyPath) {
+    return legacyPath.path
+  }
+
+  return ''
+}
+
 async function ensureProfile(profile: QuickPlayProfile) {
-  const path = await acquireInstanceById(profile.id)
+  const existingPath = findExistingProfilePath(profile)
+  if (!existingPath && profilesBootstrapped.value) {
+    return ''
+  }
+
+  const path = existingPath || await acquireInstanceById(profile.id)
   profilePaths[profile.id] = path
   await editInstance({
     instancePath: path,
@@ -187,17 +228,24 @@ async function ensureProfile(profile: QuickPlayProfile) {
     hideLauncher: true,
     fastLaunch: true,
   })
+  profilesBootstrapped.value = true
   return path
 }
 
 async function ensureProfiles() {
   for (const profile of profiles) {
-    await ensureProfile(profile)
+    const path = findExistingProfilePath(profile)
+    if (path) {
+      profilePaths[profile.id] = path
+    }
   }
 }
 
 async function selectProfile(profile: QuickPlayProfile) {
   const path = profilePaths[profile.id] || await ensureProfile(profile)
+  if (!path) {
+    return ''
+  }
   selectedInstance.value = path
   await nextTick()
   return path
@@ -207,6 +255,9 @@ async function playProfile(profile: QuickPlayProfile) {
   busyProfileId.value = profile.id
   try {
     const path = await selectProfile(profile)
+    if (!path) {
+      return
+    }
     await new Promise(resolve => setTimeout(resolve, 80))
     if (instruction.value?.instance === path) {
       await fix()

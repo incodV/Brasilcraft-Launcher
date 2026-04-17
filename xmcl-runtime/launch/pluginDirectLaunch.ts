@@ -43,7 +43,7 @@ async function handleDirectLaunch(app: LauncherApp, logger: Logger, argv: string
 }
 
 async function directLaunch(app: LauncherApp, userId: string, instancePath: string) {
-  const userSerivce = await app.registry.getOrCreate(UserService)
+  const userService = await app.registry.getOrCreate(UserService)
   const instanceService = await app.registry.getOrCreate(InstanceService)
   const versionSerivce = await app.registry.getOrCreate(VersionService)
   const launchService = await app.registry.getOrCreate(LaunchService)
@@ -51,12 +51,12 @@ async function directLaunch(app: LauncherApp, userId: string, instancePath: stri
   const authLibService = await app.registry.getOrCreate(AuthlibInjectorService)
 
   // user
-  const users = await userSerivce.getUserState()
-  let user = users.users[userId] || Object.values(users.users)[0]
+  const users = await userService.getUserState()
+  let user = users.users[userId]
   if (!user) {
     throw new AnyError('DirectLaunchError', `User ${userId} not found`)
   }
-  user = await userSerivce.refreshUser(user.id)
+  user = await userService.refreshUser(userId)
 
   // instance
   const instance = instanceService.state.all[instancePath]

@@ -2,6 +2,7 @@ import { useEventBus, useLocalStorage } from '@vueuse/core'
 import type { EditInstanceOptions, Instance, InstanceDataWithTime } from '@xmcl/instance'
 import { InstanceServiceKey, InstanceState } from '@xmcl/runtime-api'
 import { InjectionKey } from 'vue'
+import filenamify from 'filenamify'
 import { useService } from './service'
 import { useState } from './syncableState'
 import { InstanceOrGroupData } from './instanceGroup'
@@ -139,6 +140,7 @@ export function useInstances() {
   })
   const instances = computed(() => state.value?.instances ?? [])
   const _path = useLocalStorage('selectedInstancePath', '' as string)
+  const _profilesBootstrapped = useLocalStorage('brasilcraftProfilesBootstrapped', false)
   const path = ref('')
 
   const migrationBus = useEventBus<{ oldRoot: string; newRoot: string }>('migration')
@@ -169,8 +171,41 @@ export function useInstances() {
     }
   }
 
+  function getManagedProfilePath(name: string) {
+    const firstInstance = state.value?.instances[0]
+    if (!firstInstance) return ''
+
+    const separatorIndex = Math.max(firstInstance.path.lastIndexOf('/'), firstInstance.path.lastIndexOf('\\'))
+    if (separatorIndex === -1) return ''
+
+    const root = firstInstance.path.slice(0, separatorIndex)
+    return `${root}\\${filenamify(name, { replacement: '_' })}`
+  }
+
+  function findBrasilcraftProfilePath(profile: BrasilcraftProfileDefault) {
+    const allInstances = state.value?.instances ?? []
+    const managedPath = getManagedProfilePath(profile.name)
+    if (managedPath && state.value?.all[managedPath]) {
+      return managedPath
+    }
+
+    const byName = allInstances.find(instance => instance.name === profile.name)
+    if (byName) {
+      return byName.path
+    }
+
+    const legacyPath = allInstances.find(instance =>
+      instance.path.endsWith(`\\${profile.id}`) || instance.path.endsWith(`/${profile.id}`))
+    if (legacyPath) {
+      return legacyPath.path
+    }
+
+    return ''
+  }
+
   async function ensureBrasilcraftProfile(profile: BrasilcraftProfileDefault) {
-    const instancePath = await acquireInstanceById(profile.id)
+    const existingPath = findBrasilcraftProfilePath(profile)
+    const instancePath = existingPath || await acquireInstanceById(profile.id)
     const currentInstance = state.value?.all[instancePath]
     const shouldPreserveRuntime = profile.preserveRuntime && currentInstance?.runtime?.minecraft
 
@@ -199,6 +234,7 @@ export function useInstances() {
 
   async function createDefaultBrasilcraftInstance() {
     const profiles = await ensureBrasilcraftProfiles()
+    _profilesBootstrapped.value = true
     return profiles.survival
   }
   async function remove(instancePath: string, deleteData = true) {
@@ -207,30 +243,25 @@ export function useInstances() {
     await deleteInstance(instancePath, deleteData)
     if (instancePath === lastSelected) {
       path.value = instances.value[Math.max(index - 1, 0)]?.path ?? ''
-      if (!path.value) {
-        createDefaultBrasilcraftInstance().then(p => {
-          path.value = p
-        })
-      }
     }
   }
   watch(state, async (newVal, oldVal) => {
     if (!newVal) return
     if (!oldVal) {
-      // initialize
-      await ensureBrasilcraftProfiles()
-
       const instances = [...state.value?.instances ?? newVal.instances]
       const lastSelectedPath = _path.value
 
       const selectDefault = async () => {
         // Select the first instance
         let defaultPath = instances[0]?.path as string | undefined
-        if (!defaultPath) {
+        if (!defaultPath && !_profilesBootstrapped.value) {
           // Create a default instance
           defaultPath = await createDefaultBrasilcraftInstance()
         }
-        _path.value = defaultPath
+        _path.value = defaultPath ?? ''
+        if (defaultPath) {
+          _profilesBootstrapped.value = true
+        }
       }
 
       if (lastSelectedPath) {

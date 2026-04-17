@@ -2,7 +2,7 @@
     "name": "brasilcraft-launcher",
     "private": true,
     "main": "./index.js",
-    "version": "0.54.4",
+    "version": "0.54.5",
     "author": "ci010 <cijhn@hotmail.com>",
     "description": "Brasilcraft-Laucher - custom Minecraft launcher for Brasilcraft community",
     "license": "MIT",
