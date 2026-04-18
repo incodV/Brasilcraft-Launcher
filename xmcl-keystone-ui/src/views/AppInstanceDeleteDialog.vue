@@ -50,6 +50,7 @@
 </template>
 <script lang="ts" setup>
 import { kInstances } from '@/composables/instances'
+import { isBrasilcraftOfficialProfile } from '@/composables/instances'
 import { injection } from '@/util/inject'
 import { useDialog } from '../composables/dialog'
 import { useNotifier } from '@/composables/notifier'
@@ -70,6 +71,15 @@ const { remove, selectedInstance } = injection(kInstances)
 const { notify } = useNotifier()
 const doDelete = () => {
   const val = parameter.value
+  if (isBrasilcraftOfficialProfile(val as any)) {
+    notify({
+      title: 'Perfil protegido',
+      body: 'O perfil oficial do Brasilcraft nao pode ser apagado.',
+      level: 'warning',
+    })
+    isShown.value = false
+    return
+  }
   remove((val as any).path, deleteFiles.value).catch(e => {
     if ('code' in e) {
       if (e.code === 'EBUSY') {

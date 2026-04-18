@@ -35,6 +35,11 @@ import { getTracker } from '~/util/taskHelper'
 import { setTimeout } from 'timers/promises'
 
 const INSTANCES_FOLDER = 'instances'
+const BRASILCRAFT_OFFICIAL_INSTANCE_ID = 'brasilcraft-official'
+const BRASILCRAFT_OFFICIAL_INSTANCE_NAME = 'Brasilcraft Oficial'
+const BRASILCRAFT_LEGACY_INSTANCE_IDS = ['brasilcraft-minigames', 'brasilcraft-survival'] as const
+const BRASILCRAFT_LEGACY_INSTANCE_NAMES = ['Brasilcraft Minigames', 'Brasilcraft Survival'] as const
+const BRASILCRAFT_BOOTSTRAP_MARKER = 'brasilcraft-official-profile-created'
 
 /**
  * Provide instance splitting service. It can split the game into multiple environment and dynamically deploy the resource to run.
@@ -60,6 +65,8 @@ export class InstanceService extends StatefulService<InstanceState> implements I
         const instanceConfig = await readJson(instancesPath)
           .then(InstancesSchema.parse)
           .catch(() => InstancesSchema.parse({}))
+        await this.cleanupLegacyBrasilcraftInstances(instanceConfig)
+        await this.bootstrapBrasilcraftOfficialInstance(instanceConfig)
         const managed = (await readdirEnsured(this.getPathUnder())).map((p) => this.getPathUnder(p))
 
         this.log(
@@ -199,6 +206,86 @@ export class InstanceService extends StatefulService<InstanceState> implements I
 
   protected getPathUnder(...ps: string[]) {
     return this.getPath(INSTANCES_FOLDER, ...ps)
+  }
+
+  private getBrasilcraftBootstrapMarkerPath() {
+    return this.getAppDataPath(BRASILCRAFT_BOOTSTRAP_MARKER)
+  }
+
+  private async cleanupLegacyBrasilcraftInstances(instanceConfig: { instances: string[]; groups: (string | { instances: string[] })[] }) {
+    const legacyManagedPaths = BRASILCRAFT_LEGACY_INSTANCE_IDS.map(id => this.getPathUnder(id))
+    for (const legacyPath of legacyManagedPaths) {
+      if (existsSync(legacyPath)) {
+        await rm(legacyPath, { recursive: true, force: true }).catch(() => undefined)
+      }
+    }
+
+    instanceConfig.instances = instanceConfig.instances.filter((instancePath) => {
+      const normalized = isAbsolute(instancePath) ? instancePath : this.getPathUnder(instancePath)
+      const base = basename(normalized)
+      return !BRASILCRAFT_LEGACY_INSTANCE_IDS.includes(base as any) &&
+        !BRASILCRAFT_LEGACY_INSTANCE_NAMES.includes(base as any)
+    })
+
+    instanceConfig.groups = instanceConfig.groups
+      .map((group) => {
+        if (typeof group === 'string') {
+          return group
+        }
+        return {
+          ...group,
+          instances: group.instances.filter((instancePath) => {
+            const normalized = isAbsolute(instancePath) ? instancePath : this.getPathUnder(instancePath)
+            const base = basename(normalized)
+            return !BRASILCRAFT_LEGACY_INSTANCE_IDS.includes(base as any) &&
+              !BRASILCRAFT_LEGACY_INSTANCE_NAMES.includes(base as any)
+          }),
+        }
+      })
+      .filter((group) => typeof group === 'string' || group.instances.length > 0)
+  }
+
+  private async bootstrapBrasilcraftOfficialInstance(instanceConfig: { instances: string[]; groups: (string | { instances: string[] })[] }) {
+    const markerPath = this.getBrasilcraftBootstrapMarkerPath()
+    if (existsSync(markerPath)) {
+      return
+    }
+
+    const officialPath = this.getPathUnder(BRASILCRAFT_OFFICIAL_INSTANCE_ID)
+    const hasOfficialInConfig = instanceConfig.instances.some((instancePath) => {
+      const normalized = isAbsolute(instancePath) ? instancePath : this.getPathUnder(instancePath)
+      return basename(normalized) === BRASILCRAFT_OFFICIAL_INSTANCE_ID ||
+        basename(normalized) === BRASILCRAFT_OFFICIAL_INSTANCE_NAME
+    })
+    const hasOfficialOnDisk = existsSync(officialPath) || existsSync(this.getPathUnder(BRASILCRAFT_OFFICIAL_INSTANCE_NAME))
+
+    if (!hasOfficialInConfig && !hasOfficialOnDisk) {
+      await this.createInstance({
+        path: officialPath,
+        name: BRASILCRAFT_OFFICIAL_INSTANCE_NAME,
+        author: 'Brasilcraft',
+        description: 'Perfil oficial com Fabric e mods de performance para o Brasilcraft.',
+        version: '',
+        url: 'https://www.brasilcraft.net',
+        runtime: {
+          minecraft: '1.21.11',
+          forge: '',
+          fabricLoader: '0.18.4',
+          optifine: '',
+          quiltLoader: '',
+          neoForged: '',
+          labyMod: '',
+        },
+        hideLauncher: true,
+        fastLaunch: true,
+        server: {
+          host: 'jogarbrasilcraft.com',
+          port: 25565,
+        },
+      })
+    }
+
+    await writeFile(markerPath, 'created')
   }
 
   private getCandidatePath(name: string) {

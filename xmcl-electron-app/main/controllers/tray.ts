@@ -4,6 +4,8 @@ import { BaseService } from '@xmcl/runtime/app'
 import { app, Menu, Tray, nativeTheme, nativeImage, MenuItemConstructorOptions } from 'electron'
 import { ControllerPlugin } from './plugin'
 import { kSettings } from '@xmcl/runtime/settings'
+import { basename, isAbsolute, join } from 'path'
+import { existsSync } from 'fs'
 
 export const trayPlugin: ControllerPlugin = function (this: ElectronController) {
   const { t } = this.i18n
@@ -109,15 +111,27 @@ export const trayPlugin: ControllerPlugin = function (this: ElectronController) 
   }
 
   const getTrayImage = (dark: string, light: string) => {
-    const path = nativeTheme.shouldUseDarkColors ? dark : light
+    const rawPath = nativeTheme.shouldUseDarkColors ? dark : light
+    const candidates = isAbsolute(rawPath)
+      ? [rawPath]
+      : [
+          rawPath,
+          join(app.getAppPath(), rawPath),
+          join(app.getAppPath(), 'dist', basename(rawPath)),
+          join(app.getAppPath(), 'icons', basename(rawPath)),
+        ]
+    const path = candidates.find(candidate => existsSync(candidate)) ?? rawPath
     if (this.app.platform.os === 'osx') {
       const icon = nativeImage.createFromPath(path)
       return icon.resize({ width: 20, height: 20 })
     }
-    return path
+    return nativeImage.createFromPath(path)
   }
 
   this.app.waitEngineReady().then(async () => {
+    const tray = new Tray(getTrayImage(darkTray, lightTray))
+    this.tray = tray
+
     this.app.registry.get(BaseService).then(service => {
       checkUpdate = () => service.checkUpdate()
       tray.setContextMenu(createMenu())
@@ -132,7 +146,6 @@ export const trayPlugin: ControllerPlugin = function (this: ElectronController) 
       })
     })
 
-    const tray = new Tray(getTrayImage(darkTray, lightTray))
     if (this.app.platform.os === 'windows') {
       tray.on('double-click', () => {
         const window = this.mainWin
@@ -165,7 +178,6 @@ export const trayPlugin: ControllerPlugin = function (this: ElectronController) 
     app.on('before-quit', () => {
       this.tray?.destroy()
     })
-    this.tray = tray
   })
 
   this.app.on('app-booted', (man) => {

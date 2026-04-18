@@ -7,6 +7,7 @@ import { injection } from '@/util/inject'
 import { kInstance } from './instance'
 import { Instance } from '@xmcl/instance'
 import { useInjectSidebarSettings } from './sidebarSettings'
+import { isBrasilcraftOfficialProfile } from './instances'
 
 export function useInstanceContextMenuFunc() {
   const { show: showDeleteDialog } = useDialog('delete-instance')
@@ -20,6 +21,7 @@ export function useInstanceContextMenuFunc() {
   return (inst?: Instance) => {
     if (!inst) return []
     const isPinned = pinnedInstances.value.includes(inst.path)
+    const isOfficialProfile = isBrasilcraftOfficialProfile(inst)
     const result: ContextMenuItem[] = [
       {
         text: isPinned ? t('sidebar.unpin') : t('sidebar.pin'),
@@ -45,14 +47,6 @@ export function useInstanceContextMenuFunc() {
           showItemInDirectory(inst.path)
         },
         icon: 'folder',
-      },
-      {
-        text: t('instance.delete'),
-        color: 'red',
-        icon: 'delete',
-        onClick() {
-          showDeleteDialog({ name: inst.name, path: inst.path })
-        },
       },
       {
         text: t('instance.duplicate'),
@@ -86,6 +80,16 @@ export function useInstanceContextMenuFunc() {
         },
       },
     ]
+    if (!isOfficialProfile) {
+      result.splice(3, 0, {
+        text: t('instance.delete'),
+        color: 'red',
+        icon: 'delete',
+        onClick() {
+          showDeleteDialog({ name: inst.name, path: inst.path })
+        },
+      })
+    }
     return result
   }
 }

@@ -2,7 +2,6 @@ import { useEventBus, useLocalStorage } from '@vueuse/core'
 import type { EditInstanceOptions, Instance, InstanceDataWithTime } from '@xmcl/instance'
 import { InstanceServiceKey, InstanceState } from '@xmcl/runtime-api'
 import { InjectionKey } from 'vue'
-import filenamify from 'filenamify'
 import { useService } from './service'
 import { useState } from './syncableState'
 import { InstanceOrGroupData } from './instanceGroup'
@@ -14,70 +13,46 @@ const BRASILCRAFT_SERVER = {
   port: 25565,
 }
 
-type BrasilcraftProfileDefault = {
-  id: string
-  name: string
-  author: string
-  description: string
-  url: string
+const BRASILCRAFT_OFFICIAL_PROFILE = {
+  id: 'brasilcraft-official',
+  name: 'Brasilcraft Oficial',
+  author: 'Brasilcraft',
+  description: 'Perfil oficial com Fabric e mods de performance para o Brasilcraft.',
+  url: 'https://www.brasilcraft.net',
   runtime: {
-    minecraft: string
-    forge: string
-    fabricLoader: string
-    quiltLoader: string
-    neoForged: string
-    optifine: string
-    labyMod: string
-  }
-  server: {
-    host: string
-    port: number
-  }
-  hideLauncher: boolean
-  fastLaunch: boolean
-  preserveRuntime?: boolean
-}
+    minecraft: '1.21.11',
+    forge: '',
+    fabricLoader: '0.18.4',
+    quiltLoader: '',
+    neoForged: '',
+    optifine: '',
+    labyMod: '',
+  },
+  server: BRASILCRAFT_SERVER,
+  hideLauncher: true,
+  fastLaunch: true,
+} as const
 
-const BRASILCRAFT_PROFILE_DEFAULTS: BrasilcraftProfileDefault[] = [
-  {
-    id: 'brasilcraft-minigames',
-    name: 'Brasilcraft Minigames',
-    author: 'Brasilcraft',
-    description: 'Perfil rapido dos Minigames Brasilcraft',
-    url: 'https://www.brasilcraft.net',
-    runtime: {
-      minecraft: '1.8',
-      forge: '',
-      fabricLoader: '',
-      quiltLoader: '',
-      neoForged: '',
-      optifine: '',
-      labyMod: '',
-    },
-    server: BRASILCRAFT_SERVER,
-    hideLauncher: true,
-    fastLaunch: true,
-  },
-  {
-    id: 'brasilcraft-survival',
-    name: 'Brasilcraft Survival',
-    author: 'Brasilcraft',
-    description: 'Perfil rapido do Survival Brasilcraft',
-    url: 'https://www.brasilcraft.net',
-    runtime: {
-      minecraft: '1.21.11',
-      forge: '',
-      fabricLoader: '',
-      quiltLoader: '',
-      neoForged: '',
-      optifine: '',
-      labyMod: '',
-    },
-    server: BRASILCRAFT_SERVER,
-    hideLauncher: true,
-    fastLaunch: true,
-  },
-]
+const BRASILCRAFT_LEGACY_PROFILE_IDS = [
+  'brasilcraft-minigames',
+  'brasilcraft-survival',
+] as const
+
+const BRASILCRAFT_LEGACY_PROFILE_NAMES = [
+  'Brasilcraft Minigames',
+  'Brasilcraft Survival',
+] as const
+
+export function isBrasilcraftOfficialProfile(instance: Pick<Instance, 'name' | 'path'> | { name?: string; path?: string } | undefined) {
+  if (!instance) return false
+  const name = instance.name ?? ''
+  const path = instance.path ?? ''
+  return name === BRASILCRAFT_OFFICIAL_PROFILE.name ||
+    path.endsWith(`\\${BRASILCRAFT_OFFICIAL_PROFILE.id}`) ||
+    path.endsWith(`/${BRASILCRAFT_OFFICIAL_PROFILE.id}`) ||
+    path.endsWith('\\Brasilcraft Oficial') ||
+    path.endsWith('/Brasilcraft Oficial')
+}
 
 /**
  * Hook of a view of all instances & some deletion/selection functions
@@ -140,7 +115,8 @@ export function useInstances() {
   })
   const instances = computed(() => state.value?.instances ?? [])
   const _path = useLocalStorage('selectedInstancePath', '' as string)
-  const _profilesBootstrapped = useLocalStorage('brasilcraftProfilesBootstrapped', false)
+  const _officialProfileBootstrapped = useLocalStorage('brasilcraftOfficialProfileBootstrapped', false)
+  const _officialBootstrapInFlight = ref(false)
   const path = ref('')
 
   const migrationBus = useEventBus<{ oldRoot: string; newRoot: string }>('migration')
@@ -171,73 +147,58 @@ export function useInstances() {
     }
   }
 
-  function getManagedProfilePath(name: string) {
-    const firstInstance = state.value?.instances[0]
-    if (!firstInstance) return ''
-
-    const separatorIndex = Math.max(firstInstance.path.lastIndexOf('/'), firstInstance.path.lastIndexOf('\\'))
-    if (separatorIndex === -1) return ''
-
-    const root = firstInstance.path.slice(0, separatorIndex)
-    return `${root}\\${filenamify(name, { replacement: '_' })}`
-  }
-
-  function findBrasilcraftProfilePath(profile: BrasilcraftProfileDefault) {
-    const allInstances = state.value?.instances ?? []
-    const managedPath = getManagedProfilePath(profile.name)
-    if (managedPath && state.value?.all[managedPath]) {
-      return managedPath
+  async function createOfficialProfileOnce() {
+    if (_officialBootstrapInFlight.value) {
+      return ''
     }
-
-    const byName = allInstances.find(instance => instance.name === profile.name)
-    if (byName) {
-      return byName.path
-    }
-
-    const legacyPath = allInstances.find(instance =>
-      instance.path.endsWith(`\\${profile.id}`) || instance.path.endsWith(`/${profile.id}`))
-    if (legacyPath) {
-      return legacyPath.path
-    }
-
-    return ''
-  }
-
-  async function ensureBrasilcraftProfile(profile: BrasilcraftProfileDefault) {
-    const existingPath = findBrasilcraftProfilePath(profile)
-    const instancePath = existingPath || await acquireInstanceById(profile.id)
-    const currentInstance = state.value?.all[instancePath]
-    const shouldPreserveRuntime = profile.preserveRuntime && currentInstance?.runtime?.minecraft
-
-    await editInstance({
-      instancePath,
-      name: profile.name,
-      author: profile.author,
-      description: profile.description,
-      url: profile.url,
-      server: { ...profile.server },
-      runtime: shouldPreserveRuntime ? { ...currentInstance.runtime } : { ...profile.runtime },
-      hideLauncher: profile.hideLauncher,
-      fastLaunch: profile.fastLaunch,
-    })
-
-    return instancePath
-  }
-
-  async function ensureBrasilcraftProfiles() {
-    const paths = await Promise.all(BRASILCRAFT_PROFILE_DEFAULTS.map(ensureBrasilcraftProfile))
-    return {
-      minigames: paths[0],
-      survival: paths[1],
+    _officialBootstrapInFlight.value = true
+    const instancePath = await acquireInstanceById(BRASILCRAFT_OFFICIAL_PROFILE.id)
+    try {
+      await editInstance({
+        instancePath,
+        name: BRASILCRAFT_OFFICIAL_PROFILE.name,
+        author: BRASILCRAFT_OFFICIAL_PROFILE.author,
+        description: BRASILCRAFT_OFFICIAL_PROFILE.description,
+        url: BRASILCRAFT_OFFICIAL_PROFILE.url,
+        server: { ...BRASILCRAFT_OFFICIAL_PROFILE.server },
+        runtime: { ...BRASILCRAFT_OFFICIAL_PROFILE.runtime },
+        hideLauncher: BRASILCRAFT_OFFICIAL_PROFILE.hideLauncher,
+        fastLaunch: BRASILCRAFT_OFFICIAL_PROFILE.fastLaunch,
+      })
+      _officialProfileBootstrapped.value = true
+      return instancePath
+    } finally {
+      _officialBootstrapInFlight.value = false
     }
   }
 
-  async function createDefaultBrasilcraftInstance() {
-    const profiles = await ensureBrasilcraftProfiles()
-    _profilesBootstrapped.value = true
-    return profiles.survival
+  function hasOfficialProfile(allInstances: Instance[]) {
+    return allInstances.some(instance =>
+      instance.name === BRASILCRAFT_OFFICIAL_PROFILE.name ||
+      (instance.server?.host === BRASILCRAFT_SERVER.host &&
+        instance.server?.port === BRASILCRAFT_SERVER.port &&
+        instance.runtime.minecraft === BRASILCRAFT_OFFICIAL_PROFILE.runtime.minecraft &&
+        !!instance.runtime.fabricLoader) ||
+      instance.path.endsWith(`\\${BRASILCRAFT_OFFICIAL_PROFILE.id}`) ||
+      instance.path.endsWith(`/${BRASILCRAFT_OFFICIAL_PROFILE.id}`))
   }
+
+  async function cleanupLegacyBrasilcraftProfiles(allInstances: Instance[]) {
+    const legacyInstances = allInstances.filter((instance) =>
+      BRASILCRAFT_LEGACY_PROFILE_NAMES.includes(instance.name as any) ||
+      BRASILCRAFT_LEGACY_PROFILE_IDS.some(id =>
+        instance.path.endsWith(`\\${id}`) || instance.path.endsWith(`/${id}`)))
+
+    for (const instance of legacyInstances) {
+      await deleteInstance(instance.path, true)
+    }
+  }
+
   async function remove(instancePath: string, deleteData = true) {
+    const target = instances.value.find(i => i.path === instancePath)
+    if (isBrasilcraftOfficialProfile(target ?? { path: instancePath })) {
+      return
+    }
     const index = instances.value.findIndex(i => i.path === instancePath)
     const lastSelected = path.value
     await deleteInstance(instancePath, deleteData)
@@ -245,6 +206,23 @@ export function useInstances() {
       path.value = instances.value[Math.max(index - 1, 0)]?.path ?? ''
     }
   }
+
+  async function ensureOfficialBootstrap(instances: Instance[]) {
+    if (_officialProfileBootstrapped.value || _officialBootstrapInFlight.value) {
+      return
+    }
+    if (hasOfficialProfile(instances)) {
+      _officialProfileBootstrapped.value = true
+      return
+    }
+    await cleanupLegacyBrasilcraftProfiles(instances)
+    const created = await createOfficialProfileOnce()
+    if (created && !_path.value) {
+      _path.value = created
+      path.value = created
+    }
+  }
+
   watch(state, async (newVal, oldVal) => {
     if (!newVal) return
     if (!oldVal) {
@@ -252,16 +230,12 @@ export function useInstances() {
       const lastSelectedPath = _path.value
 
       const selectDefault = async () => {
-        // Select the first instance
         let defaultPath = instances[0]?.path as string | undefined
-        if (!defaultPath && !_profilesBootstrapped.value) {
-          // Create a default instance
-          defaultPath = await createDefaultBrasilcraftInstance()
+        if (!_officialProfileBootstrapped.value) {
+          await ensureOfficialBootstrap(instances)
+          defaultPath = [...state.value?.instances ?? instances].find(i => isBrasilcraftOfficialProfile(i))?.path ?? defaultPath
         }
         _path.value = defaultPath ?? ''
-        if (defaultPath) {
-          _profilesBootstrapped.value = true
-        }
       }
 
       if (lastSelectedPath) {
@@ -281,6 +255,7 @@ export function useInstances() {
     }
   })
   watch(instances, (newInstances) => {
+    ensureOfficialBootstrap(newInstances).catch(console.error)
     for (const instance of newInstances) {
       ensureBrasilcraftServer(instance.path).catch(console.error)
     }
